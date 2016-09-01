@@ -63,6 +63,10 @@ public class Global : MonoBehaviour
     }
     public static netStatus clientStatus = netStatus.NotConnected;
 
+    // Contains a list of connection IDs, used for all clients connected to the server
+    //  that are NOT the hololens. The hololens is handled separately.
+    public static List<int> connectionIDs = new List<int>();
+
     // Contains a reference for every object created by the network (including the Kinect)
     public static Dictionary<int, GameObject> objects = new Dictionary<int, GameObject>();
     public static System.Object objectLock = new System.Object(); // The network is multi-threaded, this is our mutex

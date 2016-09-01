@@ -10,6 +10,7 @@
 using System.Collections.Generic;
 using System;
 using UnityEngine;
+using UnityEngine.Networking;
 using System.Text;
 using System.Net;
 using System.Net.Sockets;
@@ -34,6 +35,9 @@ public class DataSending : MonoBehaviour
     private GameObject reusedObj;
     private int reusedInt;
 
+    // Byte error used in error of sending data (Currently unchecked)
+    byte error;
+
     // Update is called once per frame.
     void Update()
     {
@@ -46,91 +50,40 @@ public class DataSending : MonoBehaviour
 
         if(Input.GetKeyDown("g")) // Send a string message as a test
         {
-            if (Global.clientStatus == Global.netStatus.Connected)
-            {
-                String message = "GREETINGS FROM THE COMPUTER";
-
-                // Create a buffer
-                List<byte> messageBuffer = new List<byte>();
-                // Add our flag
-                messageBuffer.AddRange(BitConverter.GetBytes((int)Global.NetFlag.STRING_FLAG));
-                // Add our message
-                messageBuffer.AddRange(Encoding.ASCII.GetBytes(message));
-                // Add our size
-                int size = messageBuffer.Count + 4;
-                messageBuffer.InsertRange(0, BitConverter.GetBytes(size));
-
-                //the byte[] to send
-                byte[] theDataPackage = messageBuffer.ToArray();
-
-                _clientSocket.BeginSend(theDataPackage, 0, theDataPackage.Length, SocketFlags.None, new AsyncCallback(SendCallback), _clientSocket);
-            }
+            String message = "GREETINGS FROM THE COMPUTER";
+            SendString(message);
         }
         if (Input.GetKeyDown("h")) // Another string message, as a test
         {
-            if (Global.clientStatus == Global.netStatus.Connected)
-            {
-                String message = "Hello";
-
-                // Create a buffer
-                List<byte> messageBuffer = new List<byte>();
-                // Add our flag
-                messageBuffer.AddRange(BitConverter.GetBytes((int)Global.NetFlag.STRING_FLAG));
-                // Add our message
-                messageBuffer.AddRange(Encoding.ASCII.GetBytes(message));
-                // Add our size
-                int size = messageBuffer.Count + 4;
-                messageBuffer.InsertRange(0, BitConverter.GetBytes(size));
-
-                //the byte[] to send
-                byte[] theDataPackage = messageBuffer.ToArray();
-
-                _clientSocket.BeginSend(theDataPackage, 0, theDataPackage.Length, SocketFlags.None, new AsyncCallback(SendCallback), _clientSocket);
-            }
+            String message = "Hello";
+            SendString(message);
         }
         if (Input.GetKeyDown("f")) // A string message stress test
         {
-            if (Global.clientStatus == Global.netStatus.Connected)
-            {
-                String message = "This is the really long message that I intended to send you to make sure that your text box can fit this many characters and also to make you try and read this out loud in one really long breath.";
-
-                // Create a buffer
-                List<byte> messageBuffer = new List<byte>();
-                // Add our flag
-                messageBuffer.AddRange(BitConverter.GetBytes((int)Global.NetFlag.STRING_FLAG));
-                // Add our message
-                messageBuffer.AddRange(Encoding.ASCII.GetBytes(message));
-                // Add our size
-                int size = messageBuffer.Count + 4;
-                messageBuffer.InsertRange(0, BitConverter.GetBytes(size));
-
-                //the byte[] to send
-                byte[] theDataPackage = messageBuffer.ToArray();
-
-                _clientSocket.BeginSend(theDataPackage, 0, theDataPackage.Length, SocketFlags.None, new AsyncCallback(SendCallback), _clientSocket);
-            }
+            String message = "This is the really long message that I intended to send you to make sure that your text box can fit this many characters and also to make you try and read this out loud in one really long breath.";
+            SendString(message);
         }
         if (Input.GetKeyDown("1")) // Send a cube willy-nilly
         {
-            if (Global.clientStatus == Global.netStatus.Connected)
-            {
+            //if (Global.clientStatus == Global.netStatus.Connected)
+            //{
                 GameObject newCube = GameObject.Instantiate(Resources.Load("Prefabs/Cube")) as GameObject;
                 SendObject(newCube);
-            }
+            //}
         }
         else if (Input.GetKeyDown("2")) // Send a sphere willy-nilly
         {
-            if (Global.clientStatus == Global.netStatus.Connected)
-            {
+            //if (Global.clientStatus == Global.netStatus.Connected)
+            //{
                 GameObject newSphere = GameObject.Instantiate(Resources.Load("Prefabs/Sphere")) as GameObject;
                 SendObject(newSphere);
-            }
+            //}
         }
 #endregion
 
         // Do this once per update, in case of overload
-        if (Global.clientStatus == Global.netStatus.Connected)
-        {
+        //if (Global.clientStatus == Global.netStatus.Connected)
+        //{
             // These are not nested because the below get methods remove an object
             //  from their respective lists in Global-- We don't want to remove
             //  items from the list if the client is not connected
@@ -162,8 +115,9 @@ public class DataSending : MonoBehaviour
             {
                 DeleteObject(reusedInt);
             }
-        }
-        else if(Global.clientStatus == Global.netStatus.Ready)
+        //}
+
+        if (Global.clientStatus == Global.netStatus.Ready)
         {
             // If the client is connected to us on DataReceiving, attempt to make 
             //  a connection going the other way. This is necessary for Hololens 
@@ -175,7 +129,7 @@ public class DataSending : MonoBehaviour
 
     // Creates a unique ID, adds that to the objects Dictionary in Global, and sends the object over the network
     // This method is called automatically from the Update loop for any object added to Global.newSpawns. You do 
-    //  NOT need to call this method yourself. It also creates a unique ID for that object in this method.
+    //  NOT need to call this method yourself.
     private void SendObject(GameObject obj)
     {
         // Generate and save a unique Object ID
@@ -209,7 +163,7 @@ public class DataSending : MonoBehaviour
         // Set object name to be ID
         obj.name = objId.ToString();
 
-        _clientSocket.BeginSend(theDataPackage, 0, theDataPackage.Length, SocketFlags.None, new AsyncCallback(SendCallback), _clientSocket);
+        SendPacket(theDataPackage);
     }
 
     // Sends new object coords over the network
@@ -241,7 +195,7 @@ public class DataSending : MonoBehaviour
         //the byte[] to send
         byte[] theDataPackage = messageBuffer.ToArray();
 
-        _clientSocket.BeginSend(theDataPackage, 0, theDataPackage.Length, SocketFlags.None, new AsyncCallback(SendCallback), _clientSocket);
+        SendPacket(theDataPackage);
     }
 
     // This method is called automatically from the Update loop for any object added to Global.moveObjs. You do 
@@ -261,7 +215,7 @@ public class DataSending : MonoBehaviour
         //the byte[] to send
         byte[] theDataPackage = messageBuffer.ToArray();
 
-        _clientSocket.BeginSend(theDataPackage, 0, theDataPackage.Length, SocketFlags.None, new AsyncCallback(SendCallback), _clientSocket);
+        SendPacket(theDataPackage);
 
         Debug.Log("Sent deleted object: " + objId);
     }
@@ -292,7 +246,7 @@ public class DataSending : MonoBehaviour
         //the byte[] to send
         byte[] theDataPackage = messageBuffer.ToArray();
 
-        _clientSocket.BeginSend(theDataPackage, 0, theDataPackage.Length, SocketFlags.None, new AsyncCallback(SendCallback), _clientSocket);
+        SendPacket(theDataPackage);
     }
 
     private void SendBody(GameObject obj)
@@ -323,9 +277,46 @@ public class DataSending : MonoBehaviour
         //the byte[] to send
         byte[] theDataPackage = messageBuffer.ToArray();
 
-        _clientSocket.BeginSend(theDataPackage, 0, theDataPackage.Length, SocketFlags.None, new AsyncCallback(SendCallback), _clientSocket);
+        SendPacket(theDataPackage);
     }
 
+    // This method sends a basic string over the network
+    private void SendString(string message)
+    {
+        // Create a buffer
+        List<byte> messageBuffer = new List<byte>();
+        // Add our flag
+        messageBuffer.AddRange(BitConverter.GetBytes((int)Global.NetFlag.STRING_FLAG));
+        // Add our message
+        messageBuffer.AddRange(Encoding.ASCII.GetBytes(message));
+        // Add our size
+        int size = messageBuffer.Count + 4;
+        messageBuffer.InsertRange(0, BitConverter.GetBytes(size));
+
+        //the byte[] to send
+        byte[] theDataPackage = messageBuffer.ToArray();
+
+        SendPacket(theDataPackage);
+
+        Debug.Log("Sent String: " + message);
+    }
+
+    // This method sends the packet to the Hololens ("Client") if they're connected, and to any other basic
+    //  network connections, if there are any.
+    private void SendPacket(byte[] theDataPackage)
+    {
+        if (Global.clientStatus == Global.netStatus.Ready)
+        {
+            _clientSocket.BeginSend(theDataPackage, 0, theDataPackage.Length, SocketFlags.None, new AsyncCallback(SendCallback), _clientSocket);
+        }
+
+        foreach (int connection in Global.connectionIDs)
+        {
+            NetworkTransport.Send(0, connection, 0, theDataPackage, theDataPackage.Length, out error);
+        }
+    }
+
+    
     // Method to attempt a connection with the Hololens for sending data. At this point, we are
     //  already connected to the Hololens for receiving data. On failure, this method will set the
     //  ClientStatus to Error, and an error will be printed in console, but nothing further will be

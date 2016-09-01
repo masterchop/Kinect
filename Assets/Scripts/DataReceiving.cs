@@ -12,8 +12,10 @@ using System.Collections.Generic;
 using System;
 using System.IO;
 using UnityEngine;
+using UnityEngine.Networking;
 using System.Text;
 using HoloToolkit.Unity;
+using System.Runtime.Serialization.Formatters.Binary;
 
 #if UNITY_EDITOR
 using System.Net;
@@ -35,13 +37,29 @@ public class DataReceiving : SpatialMappingSource
     // Keeps client information when a connection happens.
     private TcpClient networkClient;
 
-    // Tracks if a client is connected.
+    // Tracks if the hololens client is connected.
     private bool ClientConnected = false;
 
     // List of all meshes. This is NOT a list of the objects in the scene. This is
     //  a list of the meshes sent from the Hololens. The purpose of this list is for
     //  saving the meshes recieved from the hololens, and loading them again.
     List<Mesh> globalMeshes;
+
+    // <NEW CHUNK> ////////////
+    private bool _isStarted = false;
+    private bool _isServer = false;
+    string ip = "192.168.0.2";
+    int port = 45045;
+
+    private int m_ConnectionId = 0;
+    private int m_WebSocketHostId = 0;
+    private int m_GenericHostId = 0;
+
+    private string m_SendString = "";
+    private string m_RecString = "";
+    private ConnectionConfig m_Config = null;
+    private byte m_CommunicationChannel = 0;
+    // </NEW CHUNK> ///////////
 
     // Use this for initialization.
     void Start()
@@ -59,11 +77,68 @@ public class DataReceiving : SpatialMappingSource
         networkListener.BeginAcceptTcpClient(callback, this);
 
         globalMeshes = new List<Mesh>();
+
+        // <NEW CHUNK> ////////////
+        m_Config = new ConnectionConfig();                                         //create configuration containing one reliable channel
+        m_CommunicationChannel = m_Config.AddChannel(QosType.Reliable);
+        // </NEW CHUNK> ///////////
     }
+
+    // <NEW CHUNK> ////////////
+    void OnGUI()
+    {
+        if (!_isStarted)
+        {
+            GUI.Box(new Rect(5, 5, 450, 450), "window");
+            ip = GUI.TextField(new Rect(10, 10, 250, 30), ip, 25);
+            port = Convert.ToInt32(GUI.TextField(new Rect(10, 40, 250, 30), port.ToString(), 25));
+#if !(UNITY_WEBGL && !UNITY_EDITOR)
+            if (GUI.Button(new Rect(10, 70, 250, 30), "start server"))
+            {
+                _isStarted = true;
+                _isServer = true;
+                NetworkTransport.Init();
+
+                if(m_Config == null)
+                {
+                    m_Config = new ConnectionConfig();                                         //create configuration containing one reliable channel
+                    m_CommunicationChannel = m_Config.AddChannel(QosType.Reliable);
+                }
+
+                HostTopology topology = new HostTopology(m_Config, 12);
+                m_WebSocketHostId = NetworkTransport.AddWebsocketHost(topology, port, null);           //add 2 host one for udp another for websocket, as websocket works via tcp we can do this
+                m_GenericHostId = NetworkTransport.AddHost(topology, port, null);
+            }
+#endif
+            if (GUI.Button(new Rect(10, 100, 250, 30), "start client"))
+            {
+                _isStarted = true;
+                _isServer = false;
+                NetworkTransport.Init();
+
+                HostTopology topology = new HostTopology(m_Config, 12);
+                m_GenericHostId = NetworkTransport.AddHost(topology, 0); //any port for udp client, for websocket second parameter is ignored, as webgl based game can be client only
+                byte error;
+                m_ConnectionId = NetworkTransport.Connect(m_GenericHostId, ip, port, 0, out error);
+            }
+        }
+    }
+
+    // Reused variables in Update
+    int recHostId;
+    int connectionId;
+    int channelId;
+    int bufferSize = 1024;
+    int dataSize;
+    byte error;
+    // </NEW CHUNK> ///////////
 
     // Update is called once per frame.
     void Update()
     {
+        if (!_isStarted)
+            return;
+
         // If we have a connected client, presumably the client wants to send some meshes.
         if (ClientConnected)
         {
@@ -133,6 +208,68 @@ public class DataReceiving : SpatialMappingSource
                 surface.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
             }
         }
+
+        // <NEW CHUNK> ////////////
+        byte[] recBuffer = new byte[bufferSize];
+
+        NetworkEventType recData = NetworkTransport.Receive(out recHostId, out connectionId, out channelId, recBuffer, bufferSize, out dataSize, out error);
+        switch (recData)
+        {
+
+            case NetworkEventType.Nothing:
+                break;
+
+            case NetworkEventType.ConnectEvent:
+                {
+                    Global.connectionIDs.Add(connectionId);	
+                    Debug.Log(String.Format("Connection to host {0}, connection {1}", recHostId, connectionId));
+                    break;
+                }
+
+            case NetworkEventType.DataEvent:
+                {
+                    
+                    // Strip out the sent message size
+                    int messageSize = BitConverter.ToInt32(recBuffer, 0);
+                    // Create an array of that size
+                    byte[] messageData = new byte[messageSize - 4];
+                    // Copy the data we have into said array
+                    System.Buffer.BlockCopy(recBuffer, 4, messageData, 0, dataSize - 4);
+
+                    // While we haven't recieved all data..
+                    int givenDataSize = dataSize;
+                    while(givenDataSize < messageSize)
+                    {
+                        // Recieve more, put it into the messageData array, add to our size, repeat..
+                        NetworkTransport.Receive(out recHostId, out connectionId, out channelId, recBuffer, bufferSize, out dataSize, out error);
+                        System.Buffer.BlockCopy(recBuffer, 0, messageData, givenDataSize, dataSize);
+                        givenDataSize += dataSize;
+                    }
+
+                    if(messageSize < givenDataSize)
+                    {
+                        Debug.LogError("Recieved more bytes than sent by client! Recieved " + givenDataSize + " bytes, expected " + messageSize + " bytes");
+                    }
+                    //Debug.Log(String.Format("Received event and Sent message: host {0}, connection {1}, message length {2}", recHostId, connectionId, messageData.Length));
+
+                    // Now, send that data along to the interpret function
+                    interpretIncomingPackage(messageData, messageData.Length);
+
+                    // From here, forward the message to all other clients (incl. Hololens)?
+                }
+                break;
+            case NetworkEventType.DisconnectEvent:
+                {
+                    if (_isServer)
+                    {
+                        Debug.Log(String.Format("Disconnect from host {0}, connection {1}", recHostId, connectionId));
+                        Global.connectionIDs.Remove(connectionId);
+                    }
+
+                    break;
+                }
+        }
+        // </NEW CHUNK> ///////////
     }
 
     // This is the meat of DataRecieving. Takes the full package and interprets
