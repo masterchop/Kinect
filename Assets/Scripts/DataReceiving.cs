@@ -45,58 +45,46 @@ public class DataReceiving : SpatialMappingSource
     //  saving the meshes recieved from the hololens, and loading them again.
     List<Mesh> globalMeshes;
 
-    // <NEW CHUNK> ////////////
+    // True after 'Start Server' is pressed
     private bool _isStarted = false;
-    private bool _isServer = false;
-    string ip = "192.168.0.2";
-    int port = 45045;
 
+    // Non-Hololens Client/Server variables
+    int port = 45045;
     private int m_ConnectionId = 0;
     private int m_WebSocketHostId = 0;
     private int m_GenericHostId = 0;
-
-    private string m_SendString = "";
-    private string m_RecString = "";
-    private ConnectionConfig m_Config = null;
     private byte m_CommunicationChannel = 0;
-    // </NEW CHUNK> ///////////
+
+    // Non-Hololens Server Configuration
+    private ConnectionConfig m_Config = null;
 
     // Use this for initialization.
     void Start()
     {
-        // Setup the network listener.
-        IPAddress localAddr = IPAddress.Parse(ServerIP.Trim());
-        networkListener = new TcpListener(localAddr, ConnectionPort);
-        networkListener.Start();
-
-        //print out the IP adress and port number to see on the debug console
-        UnityEngine.Debug.Log(networkListener.LocalEndpoint.ToString());
-
-        // Request the network listener to wait for connections asynchronously.
-        AsyncCallback callback = new AsyncCallback(OnClientConnect);
-        networkListener.BeginAcceptTcpClient(callback, this);
-
         globalMeshes = new List<Mesh>();
 
-        // <NEW CHUNK> ////////////
+        // Configuration for Server Settings for the Non-Hololens clients
         m_Config = new ConnectionConfig();                                         //create configuration containing one reliable channel
         m_CommunicationChannel = m_Config.AddChannel(QosType.Reliable);
-        // </NEW CHUNK> ///////////
     }
-
-    // <NEW CHUNK> ////////////
+    
+    // The OnGUI method provides the Connections Setting popup when the app first runs.
+    //  With the isStarted boolean, the Update() method won't proceed until the Start
+    //  Server button is pressed.
     void OnGUI()
     {
         if (!_isStarted)
         {
-            GUI.Box(new Rect(5, 5, 450, 450), "window");
-            ip = GUI.TextField(new Rect(10, 10, 250, 30), ip, 25);
-            port = Convert.ToInt32(GUI.TextField(new Rect(10, 40, 250, 30), port.ToString(), 25));
+            GUI.Box(new Rect(5, 5, 310, 150), "Connection Settings");
+            GUI.Label(new Rect(10, 35, 40, 30), "IP");
+            ServerIP = GUI.TextField(new Rect(50, 35, 250, 30), ServerIP, 25);
+            GUI.Label(new Rect(10, 65, 40, 30), "Port");
+            port = Convert.ToInt32(GUI.TextField(new Rect(50, 65, 250, 30), port.ToString(), 25));
+
 #if !(UNITY_WEBGL && !UNITY_EDITOR)
-            if (GUI.Button(new Rect(10, 70, 250, 30), "start server"))
+            if (GUI.Button(new Rect(30, 115, 250, 30), "Start Server"))
             {
                 _isStarted = true;
-                _isServer = true;
                 NetworkTransport.Init();
 
                 if(m_Config == null)
@@ -108,19 +96,21 @@ public class DataReceiving : SpatialMappingSource
                 HostTopology topology = new HostTopology(m_Config, 12);
                 m_WebSocketHostId = NetworkTransport.AddWebsocketHost(topology, port, null);           //add 2 host one for udp another for websocket, as websocket works via tcp we can do this
                 m_GenericHostId = NetworkTransport.AddHost(topology, port, null);
+
+                // Hololens setup:
+                // Setup the network listener.
+                IPAddress localAddr = IPAddress.Parse(ServerIP.Trim());
+                networkListener = new TcpListener(localAddr, ConnectionPort);
+                networkListener.Start();
+
+                //print out the IP adress and port number to see on the debug console
+                UnityEngine.Debug.Log(networkListener.LocalEndpoint.ToString());
+
+                // Request the network listener to wait for connections asynchronously.
+                AsyncCallback callback = new AsyncCallback(OnClientConnect);
+                networkListener.BeginAcceptTcpClient(callback, this);
             }
 #endif
-            if (GUI.Button(new Rect(10, 100, 250, 30), "start client"))
-            {
-                _isStarted = true;
-                _isServer = false;
-                NetworkTransport.Init();
-
-                HostTopology topology = new HostTopology(m_Config, 12);
-                m_GenericHostId = NetworkTransport.AddHost(topology, 0); //any port for udp client, for websocket second parameter is ignored, as webgl based game can be client only
-                byte error;
-                m_ConnectionId = NetworkTransport.Connect(m_GenericHostId, ip, port, 0, out error);
-            }
         }
     }
 
@@ -131,7 +121,6 @@ public class DataReceiving : SpatialMappingSource
     int bufferSize = 1024;
     int dataSize;
     byte error;
-    // </NEW CHUNK> ///////////
 
     // Update is called once per frame.
     void Update()
@@ -209,7 +198,11 @@ public class DataReceiving : SpatialMappingSource
             }
         }
 
-        // <NEW CHUNK> ////////////
+        // *******
+        // The rest of the Update() look handles recieving data from the
+        //  Non-Hololens clients. Both Hololens and Non-Hololens clients
+        //  messages go through interpretIncomingPackage()
+        // *******
         byte[] recBuffer = new byte[bufferSize];
 
         NetworkEventType recData = NetworkTransport.Receive(out recHostId, out connectionId, out channelId, recBuffer, bufferSize, out dataSize, out error);
@@ -260,16 +253,12 @@ public class DataReceiving : SpatialMappingSource
                 break;
             case NetworkEventType.DisconnectEvent:
                 {
-                    if (_isServer)
-                    {
-                        Debug.Log(String.Format("Disconnect from host {0}, connection {1}", recHostId, connectionId));
-                        Global.connectionIDs.Remove(connectionId);
-                    }
+                    Debug.Log(String.Format("Disconnect from host {0}, connection {1}", recHostId, connectionId));
+                    Global.connectionIDs.Remove(connectionId);
 
                     break;
                 }
         }
-        // </NEW CHUNK> ///////////
     }
 
     // This is the meat of DataRecieving. Takes the full package and interprets
