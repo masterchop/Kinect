@@ -40,7 +40,9 @@ public class Global : MonoBehaviour
         CAMERA_FLAG = 5,
         HOLO_HEAD_CREATION_FLAG = 6,
         AVATAR_CREATION_FLAG = 7,
-        DELETE_FLAG = 8
+        DELETE_FLAG = 8,
+        VIVE_CREATION_FLAG = 9,
+        VIVE_MOVE_FLAG = 10
     }
 
     // Takes a generic Enum type and a basic string value and parses

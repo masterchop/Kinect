@@ -415,6 +415,66 @@ public class DataReceiving : SpatialMappingSource
 
             Global.DeleteObject(objId);
         }
+        else if(flag == Global.NetFlag.VIVE_CREATION_FLAG)
+        {
+            int hmdId = BitConverter.ToInt32(theActualData, 0);
+            int leftCId = BitConverter.ToInt32(theActualData, 4);
+            int rightCId = BitConverter.ToInt32(theActualData, 8);
+
+            GameObject hmd = GameObject.Instantiate(Resources.Load("Prefabs/HMD")) as GameObject;
+            GameObject leftC = GameObject.Instantiate(Resources.Load("Prefabs/Controller")) as GameObject;
+            GameObject rightC = GameObject.Instantiate(Resources.Load("Prefabs/Controller")) as GameObject;
+
+            Global.AddObject(hmdId, hmd);
+            Global.AddObject(leftCId, leftC);
+            Global.AddObject(rightCId, rightC);
+
+            UnityEngine.Debug.Log("Vive Avatar Created!");
+        }
+        else if(flag == Global.NetFlag.VIVE_MOVE_FLAG)
+        {
+            // HMD
+            float posX = BitConverter.ToSingle(theActualData, 0);
+            float posY = BitConverter.ToSingle(theActualData, 4);
+            float posZ = BitConverter.ToSingle(theActualData, 8);
+
+            float rotX = BitConverter.ToSingle(theActualData, 12);
+            float rotY = BitConverter.ToSingle(theActualData, 16);
+            float rotZ = BitConverter.ToSingle(theActualData, 20);
+
+            int hmdId = BitConverter.ToInt32(theActualData, 24);
+            GameObject hmd = Global.GetObject(hmdId);
+            hmd.transform.position = new Vector3(posX, posY, posZ);
+            hmd.transform.rotation = Quaternion.Euler(rotX, rotY, rotZ);
+
+            // Left Controller
+            posX = BitConverter.ToSingle(theActualData, 28);
+            posY = BitConverter.ToSingle(theActualData, 32);
+            posZ = BitConverter.ToSingle(theActualData, 36);
+
+            rotX = BitConverter.ToSingle(theActualData, 40);
+            rotY = BitConverter.ToSingle(theActualData, 44);
+            rotZ = BitConverter.ToSingle(theActualData, 48);
+
+            int leftCId = BitConverter.ToInt32(theActualData, 52);
+            GameObject leftC = Global.GetObject(leftCId);
+            leftC.transform.position = new Vector3(posX, posY, posZ);
+            leftC.transform.rotation = Quaternion.Euler(rotX, rotY, rotZ);
+
+            // Right Controller
+            posX = BitConverter.ToSingle(theActualData, 56);
+            posY = BitConverter.ToSingle(theActualData, 60);
+            posZ = BitConverter.ToSingle(theActualData, 64);
+
+            rotX = BitConverter.ToSingle(theActualData, 68);
+            rotY = BitConverter.ToSingle(theActualData, 72);
+            rotZ = BitConverter.ToSingle(theActualData, 76);
+
+            int rightCId = BitConverter.ToInt32(theActualData, 80);
+            GameObject rightC = Global.GetObject(rightCId);
+            rightC.transform.position = new Vector3(posX, posY, posZ);
+            rightC.transform.rotation = Quaternion.Euler(rotX, rotY, rotZ);
+        }
         else
         {
             //PACKAGE TYPE DID NOT HAVE A VALID FLAG IDENTIFIER IN THE FRONT OF PACKAGE
