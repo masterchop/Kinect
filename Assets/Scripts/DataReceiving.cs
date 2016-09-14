@@ -122,6 +122,19 @@ public class DataReceiving : SpatialMappingSource
     int dataSize;
     byte error;
 
+    // Struct to keep track of a Vive machine's particular headset and controller ID's,
+    // in case more than one Vive machine is connected and one of them decides to disconnect
+    struct ViveMachine
+    {
+        public int connectionID;
+        public int headsetID;
+        public int leftControllerID;
+        public int rightControllerID;
+    }
+
+    // List of Vive machines for future lookup if/when one of them disconnects
+    List<ViveMachine> ViveMachines = new List<ViveMachine>();
+
     // Update is called once per frame.
     void Update()
     {
@@ -214,7 +227,7 @@ public class DataReceiving : SpatialMappingSource
 
             case NetworkEventType.ConnectEvent:
                 {
-                    Global.connectionIDs.Add(connectionId);	
+                    Global.connectionIDs.Add(connectionId);
                     Debug.Log(String.Format("Connection to host {0}, connection {1}", recHostId, connectionId));
                     break;
                 }
@@ -255,6 +268,19 @@ public class DataReceiving : SpatialMappingSource
                 {
                     Debug.Log(String.Format("Disconnect from host {0}, connection {1}", recHostId, connectionId));
                     Global.connectionIDs.Remove(connectionId);
+
+                    // Delete the Vive avatar for whichever Vive machine is currently disconnecting
+                    for (int i = 0; i < ViveMachines.Count; i++)
+                    {
+                        if (ViveMachines[i].connectionID == connectionId)
+                        {
+                            Global.DeleteObject(ViveMachines[i].headsetID);
+                            Global.DeleteObject(ViveMachines[i].leftControllerID);
+                            Global.DeleteObject(ViveMachines[i].rightControllerID);
+                            ViveMachines.RemoveAt(i);   
+                            break;
+                        }
+                    }
 
                     break;
                 }
@@ -430,6 +456,17 @@ public class DataReceiving : SpatialMappingSource
             Global.AddObject(rightCId, rightC);
 
             UnityEngine.Debug.Log("Vive Avatar Created!");
+
+            // Store information on this Vive machine for future lookup (to differentiate
+            // between multiple Vive machines that coulc be connected in case one of them
+            // disconnects
+            ViveMachine currentlyConnectingViveMachine;
+            currentlyConnectingViveMachine.connectionID = connectionId;
+            currentlyConnectingViveMachine.headsetID = hmdId;
+            currentlyConnectingViveMachine.leftControllerID = leftCId;
+            currentlyConnectingViveMachine.rightControllerID = rightCId;
+            ViveMachines.Add(currentlyConnectingViveMachine);
+
         }
         else if(flag == Global.NetFlag.VIVE_MOVE_FLAG)
         {
