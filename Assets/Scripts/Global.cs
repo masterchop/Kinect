@@ -95,6 +95,12 @@ public class Global : MonoBehaviour
     public static List<GameObject> bodies = new List<GameObject>();
     public static System.Object bodyLock = new System.Object(); // Mutex
 
+    // Contains a list of messages for the Kinect to forward to Hololens and other clients
+    public static List<byte[]> forwardMessages = new List<byte[]>();
+    public static List<int> forwardMessageID = new List<int>();
+    public static System.Object forwardLock = new System.Object(); // Mutex
+
+
     // Global Random generator
     private static System.Random rand = new System.Random();
 
@@ -103,12 +109,12 @@ public class Global : MonoBehaviour
     //  a unique ID for you, so you don't need to call the methods below yourself.
     public static void SendObject(GameObject obj)
     {
-        lock(spawnLock)
+        lock (spawnLock)
         {
             Global.newSpawns.Add(obj);
         }
     }
-    
+
     // Returns true if there are any newly spawned objects. If it returns true, obj is set to
     //  be equal to the first object in the list, and that object is removed from the list. If
     //  the method returns false, obj is set to null.
@@ -137,7 +143,7 @@ public class Global : MonoBehaviour
             Global.moveObjs.Add(obj);
         }
     }
-    
+
     // Returns true if there are any newly spawned objects. If it returns true, obj is set to
     //  be equal to the first object in the list, and that object is removed from the list. If
     //  the method returns false, obj is set to null.
@@ -165,7 +171,7 @@ public class Global : MonoBehaviour
         // Generate a unique Object ID
         int objId = rand.Next();
         GameObject throwAway;
-        while(objects.TryGetValue(objId, out throwAway))
+        while (objects.TryGetValue(objId, out throwAway))
             objId = rand.Next();
 
         // Add this to the hashmap
@@ -192,7 +198,7 @@ public class Global : MonoBehaviour
     //  This is used in DataRecieving for moving an object.
     public static GameObject GetObject(int id)
     {
-        lock(Global.objectLock)
+        lock (Global.objectLock)
         {
             return Global.objects[id];
         }
@@ -215,7 +221,7 @@ public class Global : MonoBehaviour
             GameObject obj = Global.objects[objId];
             Global.objects.Remove(objId);
         }
-        lock(deleteLock)
+        lock (deleteLock)
         {
             deletedObjs.Add(objId);
         }
@@ -301,6 +307,35 @@ public class Global : MonoBehaviour
         }
 
         obj = null;
+
+        return false;
+    }
+
+    public static void AddForwardMessage(byte[] message, int connectionId)
+    {
+        lock (forwardLock)
+        {
+            Global.forwardMessages.Add(message);
+            Global.forwardMessageID.Add(connectionId);
+        }
+    }
+
+    public static bool GetForwardMessage(out byte[] message, out int connectionId)
+    {
+        lock (forwardLock)
+        {
+            if (forwardMessages.Count > 0)
+            {
+                message = forwardMessages[0];
+                Global.forwardMessages.RemoveAt(0);
+                connectionId = forwardMessageID[0];
+                Global.forwardMessageID.RemoveAt(0);
+                return true;
+            }
+        }
+
+        message = null;
+        connectionId = -1;
 
         return false;
     }

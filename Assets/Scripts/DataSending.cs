@@ -33,6 +33,7 @@ public class DataSending : MonoBehaviour
 
     // Continously reused GameObject
     private GameObject reusedObj;
+    private byte[] reusedMessage;
     private int reusedInt;
 
     // Byte error used in error of sending data (Currently unchecked)
@@ -81,41 +82,42 @@ public class DataSending : MonoBehaviour
         }
 #endregion
 
-        // Do this once per update, in case of overload
-        //if (Global.clientStatus == Global.netStatus.Connected)
-        //{
-            // These are not nested because the below get methods remove an object
-            //  from their respective lists in Global-- We don't want to remove
-            //  items from the list if the client is not connected
-            if (Global.GetSpawnedObject(out reusedObj))
-            {
-                SendObject(reusedObj);
-            }
+        // These are not nested because the below get methods remove an object
+        //  from their respective lists in Global-- We don't want to remove
+        //  items from the list if the client is not connected
+        if (Global.GetSpawnedObject(out reusedObj))
+        {
+            SendObject(reusedObj);
+        }
 
-            if(Global.GetMovedObject(out reusedObj))
-            {
-                MoveObject(reusedObj);
-            }
+        if(Global.GetMovedObject(out reusedObj))
+        {
+            MoveObject(reusedObj);
+        }
 
-            if(Global.GetNewBody(out reusedObj))
+        if(Global.GetNewBody(out reusedObj))
+        {
+            if (reusedObj != null)
             {
-                if (reusedObj != null)
-                {
-                    SendNewBody(reusedObj);
-                }
+                SendNewBody(reusedObj);
             }
+        }
 
-            if (Global.GetMovedBody(out reusedObj))
-            {
-                SendBody(reusedObj);
-            }
+        if (Global.GetMovedBody(out reusedObj))
+        {
+            SendBody(reusedObj);
+        }
 
-            reusedInt = Global.GetDeletedObj();
-            if(reusedInt > 0)
-            {
-                DeleteObject(reusedInt);
-            }
-        //}
+        if (Global.GetForwardMessage(out reusedMessage, out reusedInt))
+        {
+            ForwardPacket(reusedMessage, reusedInt);
+        }
+
+        reusedInt = Global.GetDeletedObj();
+        if(reusedInt > 0)
+        {
+            DeleteObject(reusedInt);
+        }
 
         if (Global.clientStatus == Global.netStatus.Ready)
         {
@@ -316,7 +318,25 @@ public class DataSending : MonoBehaviour
         }
     }
 
-    
+    // This method forwards a packet from one device to any other devices connected to this device
+    private void ForwardPacket(byte[] message, int connectionId)
+    {
+        if (connectionId != -1)
+        {
+            if (Global.clientStatus == Global.netStatus.Ready)
+            {
+                _clientSocket.BeginSend(message, 0, message.Length, SocketFlags.None, new AsyncCallback(SendCallback), _clientSocket);
+            }
+        }
+        foreach (int connection in Global.connectionIDs)
+        {
+            if (connectionId != connection)
+            {
+                NetworkTransport.Send(0, connection, 0, message, message.Length, out error);
+            }
+        }
+    }
+
     // Method to attempt a connection with the Hololens for sending data. At this point, we are
     //  already connected to the Hololens for receiving data. On failure, this method will set the
     //  ClientStatus to Error, and an error will be printed in console, but nothing further will be

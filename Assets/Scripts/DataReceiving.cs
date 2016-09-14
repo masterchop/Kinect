@@ -183,7 +183,15 @@ public class DataReceiving : SpatialMappingSource
                 // NOW DO STUFF WITH THE DATA...
                 //
                 //dataBuffer variable holds the data to decode from byte[] 
-                interpretIncomingPackage(dataBuffer,datasize);
+                if (flag == Global.NetFlag.MESH_FLAG)
+                {
+                    // TODO: Mesh files are too big to send via a traditional 
+                    //  Send(). Work needs to be done here.
+                }
+                else
+                {
+                    Global.AddForwardMessage(dataBuffer, connectionId);
+                }
 
                 // Finally disconnect.
                 ClientConnected = false;
@@ -262,6 +270,7 @@ public class DataReceiving : SpatialMappingSource
                     interpretIncomingPackage(messageData, messageData.Length);
 
                     // From here, forward the message to all other clients (incl. Hololens)?
+                    Global.AddForwardMessage(messageData, connectionId);
                 }
                 break;
             case NetworkEventType.DisconnectEvent:
@@ -291,7 +300,7 @@ public class DataReceiving : SpatialMappingSource
     //  the package by taking out the first 4 bytes which denotes the package flag.
     //  Types of package flags can be found in the Global.NetFlag enum. The method
     //  then correctly acts on the flag (such as creating a new object in the scene).
-    void interpretIncomingPackage(byte[] thePackage, int sizeOfPackage)
+    Global.NetFlag interpretIncomingPackage(byte[] thePackage, int sizeOfPackage)
     {
         //a byte[] to hold the actual data
         byte[] theActualData = new byte[sizeOfPackage - sizeof(int)];
@@ -518,6 +527,7 @@ public class DataReceiving : SpatialMappingSource
             UnityEngine.Debug.LogError("UNKNOWN PACKAGE RECIEVED");
         }
 
+        return flag;
     }
 
     /// <summary>
