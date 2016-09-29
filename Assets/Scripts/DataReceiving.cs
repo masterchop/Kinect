@@ -183,15 +183,7 @@ public class DataReceiving : SpatialMappingSource
                 // NOW DO STUFF WITH THE DATA...
                 //
                 //dataBuffer variable holds the data to decode from byte[] 
-                if (flag == Global.NetFlag.MESH_FLAG)
-                {
-                    // TODO: Mesh files are too big to send via a traditional 
-                    //  Send(). Work needs to be done here.
-                }
-                else
-                {
-                    Global.AddForwardMessage(dataBuffer, connectionId);
-                }
+                interpretIncomingPackage(dataBuffer, datasize);
 
                 // Finally disconnect.
                 ClientConnected = false;
