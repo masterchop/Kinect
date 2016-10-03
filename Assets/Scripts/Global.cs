@@ -52,18 +52,18 @@ public class Global : MonoBehaviour
         return (T)Enum.Parse(typeof(T), value, true);
     }
 
-    // This public enum is used for the below clientStatus. The
-    //  clientStatus variable is used to exchange the status of the 
-    //  client between the DataSending and DataRecieving objects
-    //public enum netStatus
-    //{
-    //    Connected,
-    //    Ready,
-    //    Attempting,
-    //    NotConnected,
-    //    Error
-    //}
-    //public static netStatus clientStatus = netStatus.NotConnected;
+    //This public enum is used for the below clientStatus.The
+    // clientStatus variable is used to exchange the status of the
+    // client between the DataSending and DataRecieving objects
+    public enum netStatus
+    {
+        Connected,
+        Ready,
+        Attempting,
+        NotConnected,
+        Error
+    }
+    public static netStatus clientStatus = netStatus.NotConnected;
 
     //// Contains a list of connection IDs, used for all clients connected to the server
     ////  that are NOT the hololens. The hololens is handled separately.
@@ -194,25 +194,25 @@ public class Global : MonoBehaviour
         }
     }
 
-    //// Takes a unique ID and returns the cooresponding GameObject in the Dictionary.
-    ////  This is used in DataRecieving for moving an object.
-    //public static GameObject GetObject(int id)
-    //{
-    //    lock (Global.objectLock)
-    //    {
-    //        return Global.objects[id];
-    //    }
-    //}
+    // Takes a unique ID and returns the cooresponding GameObject in the Dictionary.
+    //  This is used in DataRecieving for moving an object.
+    public static GameObject GetObject(int id)
+    {
+        lock (Global.objectLock)
+        {
+            return Global.objects[id];
+        }
+    }
 
-    //public static void DeleteObject(int id)
-    //{
-    //    lock (Global.objectLock)
-    //    {
-    //        GameObject obj = Global.objects[id];
-    //        Global.objects.Remove(id);
-    //        Destroy(obj);
-    //    }
-    //}
+    public static void DeleteObject(int id)
+    {
+        lock (Global.objectLock)
+        {
+            GameObject obj = Global.objects[id];
+            Global.objects.Remove(id);
+            Destroy(obj);
+        }
+    }
 
     public static void AddDeleteObject(int objId)
     {
