@@ -55,19 +55,19 @@ public class Global : MonoBehaviour
     // This public enum is used for the below clientStatus. The
     //  clientStatus variable is used to exchange the status of the 
     //  client between the DataSending and DataRecieving objects
-    public enum netStatus
-    {
-        Connected,
-        Ready,
-        Attempting,
-        NotConnected,
-        Error
-    }
-    public static netStatus clientStatus = netStatus.NotConnected;
+    //public enum netStatus
+    //{
+    //    Connected,
+    //    Ready,
+    //    Attempting,
+    //    NotConnected,
+    //    Error
+    //}
+    //public static netStatus clientStatus = netStatus.NotConnected;
 
-    // Contains a list of connection IDs, used for all clients connected to the server
-    //  that are NOT the hololens. The hololens is handled separately.
-    public static List<int> connectionIDs = new List<int>();
+    //// Contains a list of connection IDs, used for all clients connected to the server
+    ////  that are NOT the hololens. The hololens is handled separately.
+    //public static List<int> connectionIDs = new List<int>();
 
     // Contains a reference for every object created by the network (including the Kinect)
     public static Dictionary<int, GameObject> objects = new Dictionary<int, GameObject>();
@@ -95,10 +95,10 @@ public class Global : MonoBehaviour
     public static List<GameObject> bodies = new List<GameObject>();
     public static System.Object bodyLock = new System.Object(); // Mutex
 
-    // Contains a list of messages for the Kinect to forward to Hololens and other clients
-    public static List<byte[]> forwardMessages = new List<byte[]>();
-    public static List<int> forwardMessageID = new List<int>();
-    public static System.Object forwardLock = new System.Object(); // Mutex
+    //// Contains a list of messages for the Kinect to forward to Hololens and other clients
+    //public static List<byte[]> forwardMessages = new List<byte[]>();
+    //public static List<int> forwardMessageID = new List<int>();
+    //public static System.Object forwardLock = new System.Object(); // Mutex
 
 
     // Global Random generator
@@ -194,25 +194,25 @@ public class Global : MonoBehaviour
         }
     }
 
-    // Takes a unique ID and returns the cooresponding GameObject in the Dictionary.
-    //  This is used in DataRecieving for moving an object.
-    public static GameObject GetObject(int id)
-    {
-        lock (Global.objectLock)
-        {
-            return Global.objects[id];
-        }
-    }
+    //// Takes a unique ID and returns the cooresponding GameObject in the Dictionary.
+    ////  This is used in DataRecieving for moving an object.
+    //public static GameObject GetObject(int id)
+    //{
+    //    lock (Global.objectLock)
+    //    {
+    //        return Global.objects[id];
+    //    }
+    //}
 
-    public static void DeleteObject(int id)
-    {
-        lock (Global.objectLock)
-        {
-            GameObject obj = Global.objects[id];
-            Global.objects.Remove(id);
-            Destroy(obj);
-        }
-    }
+    //public static void DeleteObject(int id)
+    //{
+    //    lock (Global.objectLock)
+    //    {
+    //        GameObject obj = Global.objects[id];
+    //        Global.objects.Remove(id);
+    //        Destroy(obj);
+    //    }
+    //}
 
     public static void AddDeleteObject(int objId)
     {
@@ -311,32 +311,32 @@ public class Global : MonoBehaviour
         return false;
     }
 
-    public static void AddForwardMessage(byte[] message, int connectionId)
-    {
-        lock (forwardLock)
-        {
-            Global.forwardMessages.Add(message);
-            Global.forwardMessageID.Add(connectionId);
-        }
-    }
+    //public static void AddForwardMessage(byte[] message, int connectionId)
+    //{
+    //    lock (forwardLock)
+    //    {
+    //        Global.forwardMessages.Add(message);
+    //        Global.forwardMessageID.Add(connectionId);
+    //    }
+    //}
 
-    public static bool GetForwardMessage(out byte[] message, out int connectionId)
-    {
-        lock (forwardLock)
-        {
-            if (forwardMessages.Count > 0)
-            {
-                message = forwardMessages[0];
-                Global.forwardMessages.RemoveAt(0);
-                connectionId = forwardMessageID[0];
-                Global.forwardMessageID.RemoveAt(0);
-                return true;
-            }
-        }
+    //public static bool GetForwardMessage(out byte[] message, out int connectionId)
+    //{
+    //    lock (forwardLock)
+    //    {
+    //        if (forwardMessages.Count > 0)
+    //        {
+    //            message = forwardMessages[0];
+    //            Global.forwardMessages.RemoveAt(0);
+    //            connectionId = forwardMessageID[0];
+    //            Global.forwardMessageID.RemoveAt(0);
+    //            return true;
+    //        }
+    //    }
 
-        message = null;
-        connectionId = -1;
+    //    message = null;
+    //    connectionId = -1;
 
-        return false;
-    }
+    //    return false;
+    //}
 }

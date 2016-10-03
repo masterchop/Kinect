@@ -7,6 +7,13 @@
  *  Global.SendObject(newObj); This will call the needed methods between DataSending and Global for you.
  */
 
+ /* Sends data only to the server
+  *
+  * Determines objects to send by examining the object lists
+  * 
+  * Review how to specify server
+  */
+
 using System.Collections.Generic;
 using System;
 using UnityEngine;
@@ -21,15 +28,19 @@ using Windows.Networking;
 
 public class DataSending : MonoBehaviour
 {
-    // Client IP and Connection. 
-    // Note 1: This client information is the Hololens connection information
-    // Note 2: This information appears hardcoded here, but the unity editor will overwrite these values.
-    public string ClientIP;
-    public int ConnectionPort = 46000;
+    //
+    // Not for Kinect
+    // 
 
-    // The socket and IP EndPoint connecting to the Hololens
-    private Socket _clientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-    private IPEndPoint _clientEndpoint;
+    //// Client IP and Connection. 
+    //// Note 1: This client information is the Hololens connection information
+    //// Note 2: This information appears hardcoded here, but the unity editor will overwrite these values.
+    //public string ClientIP;
+    //public int ConnectionPort = 46000;
+
+    //// The socket and IP EndPoint connecting to the Hololens
+    //private Socket _clientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+    //private IPEndPoint _clientEndpoint;
 
     // Continously reused GameObject
     private GameObject reusedObj;
@@ -43,15 +54,16 @@ public class DataSending : MonoBehaviour
     void Update()
     {
 
-        #region Keyboard Commands
-        if (Input.GetKeyDown("c")) // Create connection
-        {
-            attemptConnection();
-        }
+        //
+        // Testing
+        //
 
-        if(Input.GetKeyDown("g")) // Send a string message as a test
+        #region Keyboard Commands
+
+
+        if (Input.GetKeyDown("g")) // Send a string message as a test
         {
-            String message = "GREETINGS FROM THE COMPUTER";
+            String message = "GREETINGS FROM THE KINECT";
             SendString(message);
         }
         if (Input.GetKeyDown("h")) // Another string message, as a test
@@ -68,19 +80,19 @@ public class DataSending : MonoBehaviour
         {
             //if (Global.clientStatus == Global.netStatus.Connected)
             //{
-                GameObject newCube = GameObject.Instantiate(Resources.Load("Prefabs/Cube")) as GameObject;
-                SendObject(newCube);
+            GameObject newCube = GameObject.Instantiate(Resources.Load("Prefabs/Cube")) as GameObject;
+            SendObject(newCube);
             //}
         }
         else if (Input.GetKeyDown("2")) // Send a sphere willy-nilly
         {
             //if (Global.clientStatus == Global.netStatus.Connected)
             //{
-                GameObject newSphere = GameObject.Instantiate(Resources.Load("Prefabs/Sphere")) as GameObject;
-                SendObject(newSphere);
+            GameObject newSphere = GameObject.Instantiate(Resources.Load("Prefabs/Sphere")) as GameObject;
+            SendObject(newSphere);
             //}
         }
-#endregion
+        #endregion
 
         // These are not nested because the below get methods remove an object
         //  from their respective lists in Global-- We don't want to remove
@@ -90,12 +102,12 @@ public class DataSending : MonoBehaviour
             SendObject(reusedObj);
         }
 
-        if(Global.GetMovedObject(out reusedObj))
+        if (Global.GetMovedObject(out reusedObj))
         {
             MoveObject(reusedObj);
         }
 
-        if(Global.GetNewBody(out reusedObj))
+        if (Global.GetNewBody(out reusedObj))
         {
             if (reusedObj != null)
             {
@@ -108,24 +120,10 @@ public class DataSending : MonoBehaviour
             SendBody(reusedObj);
         }
 
-        if (Global.GetForwardMessage(out reusedMessage, out reusedInt))
-        {
-            ForwardPacket(reusedMessage, reusedInt);
-        }
-
         reusedInt = Global.GetDeletedObj();
-        if(reusedInt > 0)
+        if (reusedInt > 0)
         {
             DeleteObject(reusedInt);
-        }
-
-        if (Global.clientStatus == Global.netStatus.Ready)
-        {
-            // If the client is connected to us on DataReceiving, attempt to make 
-            //  a connection going the other way. This is necessary for Hololens 
-            //  asych silliness.
-            Global.clientStatus = Global.netStatus.Attempting;
-            attemptConnection();
         }
     }
 
@@ -150,7 +148,7 @@ public class DataSending : MonoBehaviour
         messageBuffer.AddRange(BitConverter.GetBytes(obj.transform.rotation.eulerAngles.y));
         messageBuffer.AddRange(BitConverter.GetBytes(obj.transform.rotation.eulerAngles.z));
         // Get our ObjectType
-        Global.ObjType objT = Global.ToEnum<Global.ObjType>(obj.name.Substring(0, obj.name.Length-7)); // Name - "(Clone)"
+        Global.ObjType objT = Global.ToEnum<Global.ObjType>(obj.name.Substring(0, obj.name.Length - 7)); // Name - "(Clone)"
         // Add our Object Type
         messageBuffer.AddRange(BitConverter.GetBytes((int)objT));
         // Add our Object ID
@@ -303,82 +301,13 @@ public class DataSending : MonoBehaviour
         Debug.Log("Sent String: " + message);
     }
 
-    // This method sends the packet to the Hololens ("Client") if they're connected, and to any other basic
-    //  network connections, if there are any.
+    // Removed HoloLens 
+    // Only send to server
     private void SendPacket(byte[] theDataPackage)
     {
-        if (Global.clientStatus == Global.netStatus.Ready)
-        {
-            _clientSocket.BeginSend(theDataPackage, 0, theDataPackage.Length, SocketFlags.None, new AsyncCallback(SendCallback), _clientSocket);
-        }
 
-        foreach (int connection in Global.connectionIDs)
-        {
-            NetworkTransport.Send(0, connection, 0, theDataPackage, theDataPackage.Length, out error);
-        }
-    }
-
-    // This method forwards a packet from one device to any other devices connected to this device
-    private void ForwardPacket(byte[] message, int connectionId)
-    {
-        if (connectionId != -1)
-        {
-            if (Global.clientStatus == Global.netStatus.Ready)
-            {
-                _clientSocket.BeginSend(message, 0, message.Length, SocketFlags.None, new AsyncCallback(SendCallback), _clientSocket);
-            }
-        }
-        foreach (int connection in Global.connectionIDs)
-        {
-            if (connectionId != connection)
-            {
-                NetworkTransport.Send(0, connection, 0, message, message.Length, out error);
-            }
-        }
-    }
-
-    // Method to attempt a connection with the Hololens for sending data. At this point, we are
-    //  already connected to the Hololens for receiving data. On failure, this method will set the
-    //  ClientStatus to Error, and an error will be printed in console, but nothing further will be
-    //  done.
-    private void attemptConnection()
-    {
-        try
-        {
-            // Setup the network sender.
-            Debug.Log("Attempting Send Connection..");
-            IPAddress localAddr = IPAddress.Parse(ClientIP.Trim());
-            _clientEndpoint = new IPEndPoint(localAddr, ConnectionPort);
-            _clientSocket.Connect(_clientEndpoint);
-            Global.clientStatus = Global.netStatus.Connected;
-            Debug.Log("Send Connection Established");
-        }
-        catch (SocketException ex)
-        {
-            Debug.Log("Send Connection FAILED");
-            Debug.Log(ex.Message);
-            Global.clientStatus = Global.netStatus.Error;
-        }
-    }
-
-    // This callback occurs every time a packet is sent to the hololens.
-    private static void SendCallback(IAsyncResult ar)
-    {
-        try
-        {
-            // Retrieve the socket from the state object.
-            Socket client = (Socket)ar.AsyncState;
-
-            // Complete sending the data to the remote device.
-            int bytesSent = client.EndSend(ar);
-            //Debug.Log("Sent bytes to server: " +  bytesSent + " bytes");
-
-            // Signal that all bytes have been sent.
-            //sendDone.Set();
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine(e.ToString());
-        }
+        // Send to host 0, from connection 1, on channel 0..
+        NetworkTransport.Send(0, 1, 0, theDataPackage, theDataPackage.Length, out error);
+       
     }
 }
